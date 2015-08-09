@@ -48,21 +48,14 @@ class LeafNode:
     def get_predict_value(self):
         return self.predictValue
 
-    def update_predict_value(self, targets, K):  # K is number of class, just for classification
-        sum1 = sum([targets[x] for x in self.idset])
-        sum2 = sum([abs(targets[x])*(1.0-abs(targets[x])) for x in self.idset])
-        if sum1 == 0:
-            self.predictValue = 0
-        else:
-            try:
-                self.predictValue = float(K-1)/K*(sum1/sum2)
-            except ZeroDivisionError:
-                print("zero division,sum1=%f,sum2=%f" % (sum1, sum2))
-                print("targets are:", [targets[x] for x in self.idset])
-                raise
+    def update_predict_value(self, targets, loss):
+        self.predictValue = loss.update_ternimal_regions(targets, self.idset)
 
 
 def MSE(values):
+    """
+    均平方误差 mean square error
+    """
     if len(values) < 2:
         return 0
     mean = sum(values)/float(len(values))
@@ -73,6 +66,9 @@ def MSE(values):
 
 
 def FriedmanMSE(left_values, right_values):
+    """
+    参考Friedman的论文Greedy Function Approximation: A Gradient Boosting Machine中公式35
+    """
     # 假定每个样本的权重都为1
     weighted_n_left, weighted_n_right = len(left_values), len(right_values)
     total_meal_left, total_meal_right = sum(left_values)/float(weighted_n_left), sum(right_values)/float(weighted_n_right)
@@ -81,22 +77,12 @@ def FriedmanMSE(left_values, right_values):
             (weighted_n_left + weighted_n_right))
 
 
-def compute_min_loss(values):
-    if len(values) < 2:
-        return 0
-    mean = sum(values)/float(len(values))
-    loss = 0.0
-    for v in values:
-        loss += (mean - v) * (mean - v)
-    return loss
-
-
 # if split_points is larger than 0, we just random choice split_points to evalute minLoss
 # when consider real-value split
-def construct_decision_tree(dataset, remainedSet, targets, depth, leafNodes, max_depth, split_points=0):
+def construct_decision_tree(dataset, remainedSet, targets, depth, leaf_nodes, max_depth, loss, criterion='MSE', split_points=0):
     # print "start process,depth=",depth;
     if depth < max_depth:
-        # 通过修改这里可以实现max_features的指定
+        # todo 通过修改这里可以实现选择多少特征训练
         attributes = dataset.get_attributes()
         loss = -1
         selectedAttribute = None
@@ -121,30 +107,26 @@ def construct_decision_tree(dataset, remainedSet, targets, depth, leafNodes, max
                         rightIdSet.append(Id)
                 leftTargets = [targets[id] for id in leftIdSet]
                 rightTargets = [targets[id] for id in rightIdSet]
-                sumLoss = compute_min_loss(leftTargets)+compute_min_loss(rightTargets)
+                sumLoss = MSE(leftTargets)+MSE(rightTargets)
                 if loss < 0 or sumLoss < loss:
                     selectedAttribute = attribute
                     conditionValue = attrValue
                     loss = sumLoss
                     selectedLeftIdSet = leftIdSet
                     selectedRightIdSet = rightIdSet
-            # print "for attribute:",attribute," min loss=",loss
-        # print "process over, get split attribute=",selectedAttribute
         if not selectedAttribute or loss < 0:
             raise ValueError("cannot determine the split attribute.")
         tree = Tree()
         tree.split_feature = selectedAttribute
         tree.real_value_feature = dataset.is_real_type_field(selectedAttribute)
         tree.conditionValue = conditionValue
-        tree.leftTree = construct_decision_tree(dataset, selectedLeftIdSet, targets, depth+1, leafNodes, max_depth)
-        tree.rightTree = construct_decision_tree(dataset, selectedRightIdSet, targets, depth+1, leafNodes, max_depth)
-        # print "build a tree,min loss=",loss,"conditon value=",conditionValue,"attribute=",tree.split_feature
+        tree.leftTree = construct_decision_tree(dataset, selectedLeftIdSet, targets, depth+1, leaf_nodes, max_depth, loss)
+        tree.rightTree = construct_decision_tree(dataset, selectedRightIdSet, targets, depth+1, leaf_nodes, max_depth, loss)
         return tree
     else:  # is a leaf node
         node = LeafNode(remainedSet)
-        K = dataset.get_label_size()
-        node.update_predict_value(targets, K)
-        leafNodes.append(node)  # add a leaf node
+        node.update_predict_value(targets, loss)
+        leaf_nodes.append(node)  # add a leaf node
         tree = Tree()
         tree.leafNode = node
         return tree

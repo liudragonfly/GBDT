@@ -2,6 +2,10 @@
 
 
 class DataSet:
+    """
+    分类问题默认标签列名称为label，二元分类标签∈{-1, +1}
+    回归问题也统一使用label
+    """
     def __init__(self, filename):  # just for csv data format
         line_cnt = 0
         self.instances = dict()
@@ -12,8 +16,6 @@ class DataSet:
             fields = line[:-1].split(",")
             if line_cnt == 0:  # csv head
                 self.field_names = tuple(fields)
-                # for debug
-                # print "field names:",fields;
             else:
                 if len(fields) != len(self.field_names):
                     print("wrong fields:", line)
@@ -63,7 +65,7 @@ class DataSet:
         print(info)
 
     def get_instances_idset(self):
-        return self.instances.keys()
+        return set(self.instances.keys())
 
     # return feature type, real type or not
     def is_real_type_field(self, name):
