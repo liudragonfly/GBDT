@@ -8,14 +8,14 @@ class Tree:
         self.split_feature = None
         self.leftTree = None
         self.rightTree = None
-        # condition for real value is < , for category value is =
-        # is for the left-path tree
+        # 对于real value的条件为<，对于类别值得条件为=
+        # 将满足条件的放入左树
         self.real_value_feature = True
         self.conditionValue = None
         self.leafNode = None
 
     def get_predict_value(self, instance):
-        if self.leafNode:  # we are in the leaf node
+        if self.leafNode:  # 到达叶子节点
             return self.leafNode.get_predict_value()
         if not self.split_feature:
             raise ValueError("the tree is null")
@@ -77,8 +77,6 @@ def FriedmanMSE(left_values, right_values):
             (weighted_n_left + weighted_n_right))
 
 
-# if split_points is larger than 0, we just random choice split_points to evalute minLoss
-# when consider real-value split
 def construct_decision_tree(dataset, remainedSet, targets, depth, leaf_nodes, max_depth, loss, criterion='MSE', split_points=0):
     if depth < max_depth:
         # todo 通过修改这里可以实现选择多少特征训练
@@ -89,10 +87,9 @@ def construct_decision_tree(dataset, remainedSet, targets, depth, leaf_nodes, ma
         selectedLeftIdSet = []
         selectedRightIdSet = []
         for attribute in attributes:
-            # print "start process attribute=",attribute;
             is_real_type = dataset.is_real_type_field(attribute)
             attrValues = dataset.get_distinct_valueset(attribute)
-            if is_real_type and split_points > 0 and len(attrValues) > split_points:  # need subsample split points to speed up
+            if is_real_type and split_points > 0 and len(attrValues) > split_points:
                 attrValues = sample(attrValues, split_points)
             for attrValue in attrValues:
                 leftIdSet = []
@@ -100,7 +97,8 @@ def construct_decision_tree(dataset, remainedSet, targets, depth, leaf_nodes, ma
                 for Id in remainedSet:
                     instance = dataset.get_instance(Id)
                     value = instance[attribute]
-                    if (is_real_type and value < attrValue)or(not is_real_type and value == attrValue):   # fall into the left
+                    # 将满足条件的放入左子树
+                    if (is_real_type and value < attrValue)or(not is_real_type and value == attrValue):
                         leftIdSet.append(Id)
                     else:
                         rightIdSet.append(Id)
@@ -122,10 +120,10 @@ def construct_decision_tree(dataset, remainedSet, targets, depth, leaf_nodes, ma
         tree.leftTree = construct_decision_tree(dataset, selectedLeftIdSet, targets, depth+1, leaf_nodes, max_depth, loss)
         tree.rightTree = construct_decision_tree(dataset, selectedRightIdSet, targets, depth+1, leaf_nodes, max_depth, loss)
         return tree
-    else:  # is a leaf node
+    else:  # 是叶子节点
         node = LeafNode(remainedSet)
         node.update_predict_value(targets, loss)
-        leaf_nodes.append(node)  # add a leaf node
+        leaf_nodes.append(node)
         tree = Tree()
         tree.leafNode = node
         return tree

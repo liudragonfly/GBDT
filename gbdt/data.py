@@ -34,6 +34,7 @@ class DataSet:
             line_cnt += 1
 
     def _construct_instance(self, fields):
+        """构建一个新的样本"""
         instance = dict()
         for i in range(0, len(fields)):
             field_name = self.field_names[i]
@@ -65,10 +66,11 @@ class DataSet:
         print(info)
 
     def get_instances_idset(self):
+        """获取样本的id集合"""
         return set(self.instances.keys())
 
-    # return feature type, real type or not
     def is_real_type_field(self, name):
+        """判断特征类型是否是real type"""
         if name not in self.field_names:
              raise ValueError(" field name not in the dictionary of dataset")
         return len(self.field_type[name]) == 0
@@ -76,28 +78,28 @@ class DataSet:
     def get_label_size(self, name="label"):
         if name not in self.field_names:
             raise ValueError(" there is no class label field!")
-        # if the label works with float('label'), self.filed_type['label'] is empty. It's a bug.
-        # return len(self.field_type[name])
+        # 因为训练样本的label列的值可能不仅仅是字符类型，也可能是数字类型
+        # 如果是数字类型则field_type[name]为空
         return len(self.field_type[name]) or len(self.distinct_valueset[name])
 
-    # 返回具体分类label的值
     def get_label_valueset(self, name="label"):
+        """返回具体分离label"""
         if name not in self.field_names:
             raise ValueError(" there is no class label field!")
         return self.field_type[name] if self.field_type[name] else self.distinct_valueset[name]
 
-    # 返回里面有多少个样本个数
     def size(self):
+        """返回样本个数"""
         return len(self.instances)
 
-    # 根据ID获取样本
     def get_instance(self, Id):
+        """根据ID获取样本"""
         if Id not in self.instances:
             raise ValueError("Id not in the instances dict of dataset")
         return self.instances[Id]
 
-    # 获得所有的feature名称
     def get_attributes(self):
+        """返回所有features的名称"""
         field_names = [x for x in self.field_names if x != "label"]
         return tuple(field_names)
 

@@ -151,7 +151,7 @@ class MultinomialDeviance(ClassificationLossFunction):
         for node in leaf_nodes:
             for id in node.get_idset():
                 f[id][label] += learn_rate*node.get_predict_value()
-        # for id not in subset, we have to predict by retrive the tree
+        # 更新OOB的样本
         for id in data_idset-subset:
             f[id][label] += learn_rate*tree.get_predict_value(dataset.get_instance(id))
 
@@ -195,7 +195,7 @@ class GBDT:
                 # 用损失函数的负梯度作为回归问题提升树的残差近似值
                 residual = self.loss.compute_residual(dataset, subset, f)
                 for label in label_valueset:
-                    # 挂叶子节点的下的各种样本,只有到迭代的max-depth才会使用
+                    # 挂在叶子节点下的各种样本,只有到迭代的max-depth才会使用
                     # 存放的各个叶子节点，注意叶子节点存放的是各个条件下的样本集点
                     leaf_nodes = []
                     targets = {}
@@ -204,17 +204,14 @@ class GBDT:
                     # 对某一个具体的label-K分类，选择max-depth个特征构造决策树
                     tree = construct_decision_tree(dataset, subset, targets, 0, leaf_nodes, self.max_depth, self.loss, self.split_points)
                     self.trees[iter][label] = tree
-                    # self.update_f_value(f, tree, leaf_nodes, subset, dataset, label)
                     self.loss.update_f_value(f, tree, leaf_nodes, subset, dataset, self.learn_rate, label)
                 train_loss = self.compute_loss(dataset, train_data, f)
                 print("iter%d : average train_loss=%f" % (iter, train_loss))
 
         else:
             if self.loss_type == 'binary-classification':
-                print('binary')
                 self.loss = BinomialDeviance(n_classes=dataset.get_label_size())
             elif self.loss_type == 'regression':
-                print('regression')
                 self.loss = LeastSquaresError(n_classes=1)
 
             f = dict()  # 记录F_{m-1}的值
@@ -223,7 +220,6 @@ class GBDT:
                 subset = train_data
                 if 0 < self.sample_rate < 1:
                     subset = sample(subset, int(len(subset)*self.sample_rate))
-                # self.trees[iter] = dict()
                 # 用损失函数的负梯度作为回归问题提升树的残差近似值
                 residual = self.loss.compute_residual(dataset, subset, f)
                 leaf_nodes = []
@@ -249,7 +245,6 @@ class GBDT:
                     loss -= ((1+y_i)*log(p_1)/2) + ((1-y_i)*log(1-p_1)/2)
                 except ValueError as e:
                     print(y_i, p_1)
-
         else:
             for id in dataset.get_instances_idset():
                 instance = dataset.get_instance(id)
@@ -264,25 +259,8 @@ class GBDT:
                 loss -= log(probs[instance["label"]])
         return loss/dataset.size()
 
-    # def update_f_value(self, f, tree, leaf_nodes, subset, dataset, label):
-    #     data_idset = set(dataset.get_instances_idset())
-    #     subset = set(subset)
-    #     if self.loss.K == 1:
-    #         for node in leaf_nodes:
-    #             for id in node.get_idset():
-    #                 f[id] += self.learn_rate*node.get_predict_value()
-    #         for id in data_idset-subset:
-    #             f[id] += self.learn_rate*tree.get_predict_value(dataset.get_instance(id))
-    #     else:
-    #         for node in leaf_nodes:
-    #             for id in node.get_idset():
-    #                 f[id][label] += self.learn_rate*node.get_predict_value()
-    #         # for id not in subset, we have to predict by retrive the tree
-    #         for id in data_idset-subset:
-    #             f[id][label] = f[id][label]+self.learn_rate*tree.get_predict_value(dataset.get_instance(id))
-
-    # 在进行预测的时候，得到某一个具体的instance样本点在K个分类下的浮点值
     def compute_instance_f_value(self, instance):
+        """计算样本的f值"""
         if self.loss.K == 1:
             f_value = 0.0
             for iter in self.trees:
@@ -298,7 +276,6 @@ class GBDT:
                     f_value[label] += self.learn_rate*tree.get_predict_value(instance)
         return f_value
 
-    # 预测f值
     def predict(self, instance):
         """
         对于回归和二元分类返回f值
@@ -306,7 +283,6 @@ class GBDT:
         """
         return self.compute_instance_f_value(instance)
 
-    # 预测概率
     def predict_prob(self, instance):
         """为了统一二元分类和多元分类，返回属于每个类别的概率"""
         if isinstance(self.loss, RegressionLossFunction):
@@ -328,15 +304,15 @@ class GBDT:
                 probs[label] = exp_values[label]/exp_sum
         return probs
 
-    # 预测label
     def predict_label(self, instance):
+        """预测标签"""
         predict_label = None
         if isinstance(self.loss, BinomialDeviance):
             probs = self.predict_prob(instance)
             predict_label = 1 if probs[1] >= probs[-1] else -1
         else:
             probs = self.predict_prob(instance)
-            # 选出K分类中，概率值最大的label，返回预测分类的label概率值list
+            # 选出K分类中，概率值最大的label
             for label in probs:
                 if not predict_label or probs[label] > probs[predict_label]:
                     predict_label = label
