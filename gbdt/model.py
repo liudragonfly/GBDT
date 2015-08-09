@@ -223,7 +223,7 @@ class GBDT:
                 subset = train_data
                 if 0 < self.sample_rate < 1:
                     subset = sample(subset, int(len(subset)*self.sample_rate))
-                self.trees[iter] = dict()
+                # self.trees[iter] = dict()
                 # 用损失函数的负梯度作为回归问题提升树的残差近似值
                 residual = self.loss.compute_residual(dataset, subset, f)
                 leaf_nodes = []
@@ -245,7 +245,10 @@ class GBDT:
                 y_i = dataset.get_instance(id)['label']
                 f_value = f[id]
                 p_1 = 1/(1+exp(-2*f_value))
-                loss -= ((1+y_i)*log(p_1)/2) + ((1-y_i)*log(1-p_1)/2)
+                try:
+                    loss -= ((1+y_i)*log(p_1)/2) + ((1-y_i)*log(1-p_1)/2)
+                except ValueError as e:
+                    print(y_i, p_1)
 
         else:
             for id in dataset.get_instances_idset():

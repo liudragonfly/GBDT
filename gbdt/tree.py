@@ -80,11 +80,10 @@ def FriedmanMSE(left_values, right_values):
 # if split_points is larger than 0, we just random choice split_points to evalute minLoss
 # when consider real-value split
 def construct_decision_tree(dataset, remainedSet, targets, depth, leaf_nodes, max_depth, loss, criterion='MSE', split_points=0):
-    # print "start process,depth=",depth;
     if depth < max_depth:
         # todo 通过修改这里可以实现选择多少特征训练
         attributes = dataset.get_attributes()
-        loss = -1
+        mse = -1
         selectedAttribute = None
         conditionValue = None
         selectedLeftIdSet = []
@@ -107,14 +106,14 @@ def construct_decision_tree(dataset, remainedSet, targets, depth, leaf_nodes, ma
                         rightIdSet.append(Id)
                 leftTargets = [targets[id] for id in leftIdSet]
                 rightTargets = [targets[id] for id in rightIdSet]
-                sumLoss = MSE(leftTargets)+MSE(rightTargets)
-                if loss < 0 or sumLoss < loss:
+                sum_mse = MSE(leftTargets)+MSE(rightTargets)
+                if mse < 0 or sum_mse < mse:
                     selectedAttribute = attribute
                     conditionValue = attrValue
-                    loss = sumLoss
+                    mse = sum_mse
                     selectedLeftIdSet = leftIdSet
                     selectedRightIdSet = rightIdSet
-        if not selectedAttribute or loss < 0:
+        if not selectedAttribute or mse < 0:
             raise ValueError("cannot determine the split attribute.")
         tree = Tree()
         tree.split_feature = selectedAttribute
